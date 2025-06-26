@@ -273,7 +273,10 @@ def demonstrate_processing():
         for i, actual_cls in enumerate(classes):
             print(f"    {actual_cls[:12]:12} ", end="")
             for j in range(len(classes)):
-                print(f"{cm[i][j]:8d}", end=" ")
+                if i < cm.shape[0] and j < cm.shape[1]:
+                    print(f"{cm[i][j]:8d}", end=" ")
+                else:
+                    print(f"{'0':8}", end=" ")
             print()
         print()
         
@@ -318,7 +321,7 @@ def demonstrate_processing():
     finally:
         # Cleanup
         try:
-            if 'dataset_path' in locals():
+            if 'dataset_path' in locals() and dataset_path and os.path.exists(dataset_path):
                 shutil.rmtree(dataset_path)
                 print("✓ Cleaned up temporary files")
         except:

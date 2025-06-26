@@ -109,12 +109,16 @@ class NoiseHandler:
         
         return np.clip(result, 0, 255).astype(np.uint8)
         
-    def _anisotropic_diffusion(self, image, iterations=10, delta_t=0.2, kappa=20):
+    def _anisotropic_diffusion(self, image, iterations=10, delta_t=0.1, kappa=20):
         """Anisotropic diffusion for edge-preserving smoothing."""
         img = image.astype(np.float32)
         
+        # Add small epsilon to prevent division by zero
+        eps = 1e-8
+        kappa = max(kappa, eps)
+        
         for _ in range(iterations):
-            # Calculate gradients
+            # Calculate gradients with bounds checking
             grad_n = np.zeros_like(img)
             grad_s = np.zeros_like(img)
             grad_e = np.zeros_like(img)
@@ -125,13 +129,20 @@ class NoiseHandler:
             grad_e[:, :-1] = img[:, 1:] - img[:, :-1]
             grad_w[:, 1:] = img[:, :-1] - img[:, 1:]
             
-            # Calculate diffusion coefficients
-            c_n = np.exp(-(grad_n / kappa)**2)
-            c_s = np.exp(-(grad_s / kappa)**2)
-            c_e = np.exp(-(grad_e / kappa)**2)
-            c_w = np.exp(-(grad_w / kappa)**2)
+            # Calculate diffusion coefficients with numerical stability
+            c_n = np.exp(-np.clip((grad_n / kappa)**2, 0, 50))
+            c_s = np.exp(-np.clip((grad_s / kappa)**2, 0, 50))
+            c_e = np.exp(-np.clip((grad_e / kappa)**2, 0, 50))
+            c_w = np.exp(-np.clip((grad_w / kappa)**2, 0, 50))
             
-            # Update image
-            img += delta_t * (c_n * grad_n + c_s * grad_s + c_e * grad_e + c_w * grad_w)
+            # Update image with numerical stability
+            update = delta_t * (c_n * grad_n + c_s * grad_s + c_e * grad_e + c_w * grad_w)
+            
+            # Check for NaN or infinite values
+            if np.any(np.isnan(update)) or np.any(np.isinf(update)):
+                break
+                
+            img += update
+            img = np.clip(img, 0, 255)
         
-        return np.clip(img, 0, 255).astype(np.uint8)
+        return img.astype(np.uint8)

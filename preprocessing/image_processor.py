@@ -87,17 +87,39 @@ class ImageProcessor:
         
     def denoise_image(self, image):
         """Remove noise from the image using advanced denoising."""
-        # Non-local means denoising
-        denoised = cv2.fastNlMeansDenoising(image, None, 10, 7, 21)
-        
-        # Bilateral filter for edge preservation
-        denoised = cv2.bilateralFilter(denoised, 9, 75, 75)
-        
-        # Morphological opening to remove small noise
-        kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
-        denoised = cv2.morphologyEx(denoised, cv2.MORPH_OPEN, kernel)
-        
-        return denoised
+        try:
+            # Validate input
+            if image is None or image.size == 0:
+                return image
+            
+            # Ensure proper data type and range
+            if image.dtype != np.uint8:
+                image = np.clip(image, 0, 255).astype(np.uint8)
+            
+            denoised = image.copy()
+            
+            # Use bilateral filter first (more stable)
+            denoised = cv2.bilateralFilter(denoised, 5, 50, 50)
+            
+            # Apply Gaussian blur for additional smoothing
+            denoised = cv2.GaussianBlur(denoised, (3, 3), 0)
+            
+            # Try Non-local means denoising with safer parameters
+            try:
+                denoised = cv2.fastNlMeansDenoising(denoised, None, 3, 7, 21)
+            except cv2.error:
+                # Fallback to median filter if Non-local means fails
+                denoised = cv2.medianBlur(denoised, 3)
+            
+            # Morphological opening to remove small noise
+            kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (2, 2))
+            denoised = cv2.morphologyEx(denoised, cv2.MORPH_OPEN, kernel)
+            
+            return denoised
+            
+        except Exception as e:
+            self.logger.warning(f"Denoising failed, using original image: {e}")
+            return image
         
     def remove_background(self, image):
         """Remove background using advanced segmentation."""

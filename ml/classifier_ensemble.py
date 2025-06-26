@@ -97,9 +97,9 @@ class ClassifierEnsemble:
                 
                 # Calculate metrics
                 accuracy = accuracy_score(y_test, y_pred)
-                precision = precision_score(y_test, y_pred, average='weighted', zero_division=0)
-                recall = recall_score(y_test, y_pred, average='weighted', zero_division=0)
-                f1 = f1_score(y_test, y_pred, average='weighted', zero_division=0)
+                precision = precision_score(y_test, y_pred, average='weighted', zero_division='warn')
+                recall = recall_score(y_test, y_pred, average='weighted', zero_division='warn')
+                f1 = f1_score(y_test, y_pred, average='weighted', zero_division='warn')
                 
                 individual_results[name] = {
                     'accuracy': accuracy,
@@ -118,20 +118,28 @@ class ClassifierEnsemble:
             
             # Calculate ensemble metrics
             ensemble_accuracy = accuracy_score(y_test, ensemble_predictions)
-            ensemble_precision = precision_score(y_test, ensemble_predictions, average='weighted', zero_division=0)
-            ensemble_recall = recall_score(y_test, ensemble_predictions, average='weighted', zero_division=0)
-            ensemble_f1 = f1_score(y_test, ensemble_predictions, average='weighted', zero_division=0)
+            ensemble_precision = precision_score(y_test, ensemble_predictions, average='weighted', zero_division='warn')
+            ensemble_recall = recall_score(y_test, ensemble_predictions, average='weighted', zero_division='warn')
+            ensemble_f1 = f1_score(y_test, ensemble_predictions, average='weighted', zero_division='warn')
             
             # Generate classification report
             unique_labels = sorted(set(y_test))
-            if len(unique_labels) == len(self.class_names):
-                class_report = classification_report(y_test, ensemble_predictions, 
-                                                   target_names=self.class_names)
-            else:
-                # Handle case where not all classes are present in test set
-                present_classes = [self.class_names[i] for i in unique_labels]
-                class_report = classification_report(y_test, ensemble_predictions, 
-                                                   target_names=present_classes)
+            unique_pred_labels = sorted(set(ensemble_predictions))
+            all_unique_labels = sorted(set(list(unique_labels) + list(unique_pred_labels)))
+            
+            try:
+                if len(all_unique_labels) <= len(self.class_names):
+                    # Map labels to class names
+                    target_names = [self.class_names[i] for i in all_unique_labels if i < len(self.class_names)]
+                    class_report = classification_report(y_test, ensemble_predictions, 
+                                                       labels=all_unique_labels,
+                                                       target_names=target_names)
+                else:
+                    # Use numeric labels if mapping fails
+                    class_report = classification_report(y_test, ensemble_predictions)
+            except (ValueError, IndexError):
+                # Fallback to basic report without target names
+                class_report = classification_report(y_test, ensemble_predictions)
             
             # Generate confusion matrix
             conf_matrix = confusion_matrix(y_test, ensemble_predictions)

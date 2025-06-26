@@ -25,12 +25,18 @@ def main():
         
         # Check if we can create a GUI window
         try:
+            logger.info("Initializing GUI components...")
+            
             # Create the main tkinter root window
             root = tk.Tk()
-            root.withdraw()  # Hide the root window initially
+            logger.info("Tkinter root window created successfully")
             
             # Create and run the application
+            logger.info("Creating SatelliteClassifierApp instance...")
             app = SatelliteClassifierApp(root)
+            logger.info("SatelliteClassifierApp created successfully")
+            
+            logger.info("Starting application main loop...")
             app.run()
             
         except tk.TclError as e:
